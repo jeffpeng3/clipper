@@ -1,0 +1,95 @@
+name: "CI"
+on:
+  push:
+    paths:
+      - "src/**"
+      - "build.rs"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "resources/**"
+      - ".github/workflows/ci.yaml"
+
+jobs:
+  build:
+    name: build
+
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: setup on Linux
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          target: x86_64-unknown-linux-musl
+
+      - name: build on Linux
+        run: |
+          sudo apt install -y musl-tools
+          cargo build --release --target x86_64-unknown-linux-musl
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        working-directory: target/x86_64-unknown-linux-musl/release
+        with:
+          name: Build
+          path: |
+            clipper
+
+  update-release:
+    name: Update Latest Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Get latest release
+        id: get_latest_release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const releases = await github.rest.repos.listReleases({ owner, repo });
+            if (releases.data.length === 0) {
+              core.setFailed('No releases found to update.');
+              return;
+            }
+            const latestRelease = releases.data[0];
+            core.setOutput('release_id', latestRelease.id);
+            core.setOutput('upload_url', latestRelease.upload_url);
+            core.setOutput('release_tag', latestRelease.tag_name)
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+      - name: prepare linux arifacts
+        run: |
+          mv Build/clipper ./clipper
+          chmod +x clipper
+          zip clipper.zip clipper
+
+      - name: Delete existing release assets
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const release_id = ${{ steps.get_latest_release.outputs.release_id }};
+            const assets = await github.rest.repos.listReleaseAssets({
+                owner,
+                repo,
+                release_id
+            });
+            for (const asset of assets.data) {
+                console.log(`Deleting asset ${asset.name}`);
+                await github.rest.repos.deleteReleaseAsset({
+                    owner,
+                    repo,
+                    asset_id: asset.id
+                });
+            }
+
+      - name: Upload Release Asset macos-latest
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.get_latest_release.outputs.release_tag }}
+          files: |
+            clipper.zip
