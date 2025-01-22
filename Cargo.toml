@@ -5,4 +5,5 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.95"
+clap = "4.5.27"
 wl-clipboard-rs = "0.9.1"
