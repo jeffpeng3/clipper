@@ -43,7 +43,7 @@ jobs:
     steps:
       - name: Get latest release
         id: get_latest_release
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const { owner, repo } = context.repo;
@@ -67,7 +67,7 @@ jobs:
           zip clipper.zip clipper
 
       - name: Delete existing release assets
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const { owner, repo } = context.repo;
