@@ -58,7 +58,7 @@ jobs:
             core.setOutput('release_tag', latestRelease.tag_name)
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
 
       - name: prepare linux arifacts
         run: |
